@@ -91,6 +91,7 @@
       <button onclick="generarTablero()">Generar Mapa</button>
     </div>
     <div id="tablero" class="grid"></div>
+    <h3 id="seedText"></h3>
 
     <script>
       // Función para generar azar basado en una semilla (SFC32)
@@ -128,7 +129,10 @@
       function generarTablero() {
         const seedText =
           document.getElementById("seedInput").value ||
-          Math.random().toString();
+          Math.random().toString(36).substring(2, 10);
+        document.getElementById("seedText").textContent =
+          "Semilla usada: " + seedText;
+        
         const seed = cyrb128(seedText);
         const rand = sfc32(seed[0], seed[1], seed[2], seed[3]);
         let numRojos, numAzules, numNegro;
