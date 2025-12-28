@@ -62,7 +62,7 @@
           type="number"
           id="rojosCount"
           value="9"
-          min="0"
+          min="1"
           max="9"
           style="width: 40px"
       /></label>
@@ -72,8 +72,18 @@
           type="number"
           id="azulesCount"
           value="8"
-          min="0"
+          min="1"
           max="9"
+          style="width: 40px"
+      /></label>
+      <label
+        >Negros:
+        <input
+          type="number"
+          id="negrosCount"
+          value="1"
+          min="1"
+          max="7"
           style="width: 40px"
       /></label>
       <br /><br />
@@ -121,12 +131,39 @@
           Math.random().toString();
         const seed = cyrb128(seedText);
         const rand = sfc32(seed[0], seed[1], seed[2], seed[3]);
+        let numRojos, numAzules, numNegro;
 
-        const numRojos = parseInt(document.getElementById("rojosCount").value);
-        const numAzules = parseInt(
-          document.getElementById("azulesCount").value
+        // Parsear y validar valores (usar radix 10)
+        numRojos = Number.parseInt(
+          document.getElementById("rojosCount").value,
+          10
         );
-        const numNegro = 1;
+        numAzules = Number.parseInt(
+          document.getElementById("azulesCount").value,
+          10
+        );
+        numNegro = Number.parseInt(
+          document.getElementById("negrosCount").value,
+          10
+        );
+
+        // Manejo de NaN: informar y salir si algún valor no es numérico
+        if (
+          Number.isNaN(numRojos) ||
+          Number.isNaN(numAzules) ||
+          Number.isNaN(numNegro)
+        ) {
+          alert("Solo numeros!");
+          return;
+        }
+
+        // Normalizar a enteros no negativos (protección extra)
+        numRojos = Math.max(0, Math.floor(numRojos));
+        numAzules = Math.max(0, Math.floor(numAzules));
+        numNegro = Math.max(0, Math.floor(numNegro));
+
+        console.log(numRojos, numAzules, numNegro);
+
         const numCafes = 25 - numRojos - numAzules - numNegro;
 
         // Validar que no exceda el tablero
