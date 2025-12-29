@@ -26,6 +26,7 @@
         height: 60px;
         border-radius: 4px;
         border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
       }
       .rojo {
         background-color: #ff4d4d;
@@ -39,6 +40,33 @@
       .negro {
         background-color: #1a1a1a;
       }
+      .rojo.ocupado {
+        background-color: #b12a2a;
+      }
+      .azul.ocupado {
+        background-color: #275395;
+      }
+      .cafe.ocupado {
+        background-color: #d9a867;
+      }
+      .negro.ocupado {
+        background-color: #1a1a1a;
+      }
+      .cell.ocupado {
+        filter: brightness(0.7);
+      }
+      .cell.ocupado::after {
+        content: "✖";
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        font-weight: bold;
+        color: rgba(255, 255, 255, 0.9);
+        pointer-events: none; /* importante */
+      }
       input,
       button {
         padding: 10px;
@@ -48,6 +76,15 @@
       }
       button {
         background: #27ae60;
+        color: white;
+        cursor: pointer;
+      }
+      .cell.pendiente {
+        outline: 3px dashed yellow;
+        filter: brightness(1.1);
+      }
+      #manual {
+        background: #393939;
         color: white;
         cursor: pointer;
       }
@@ -75,7 +112,8 @@
           min="1"
           max="9"
           style="width: 40px"
-      /></label> <br>
+      /></label>
+      <br />
       <label
         >Negros:
         <input
@@ -87,13 +125,59 @@
           style="width: 40px"
       /></label>
       <br /><br />
-      <input type="text" id="seedInput" placeholder="Semilla (ej: qwety)" />
+      <input type="text" id="seedInput" placeholder="Semilla (ej: qwerty)" />
       <button onclick="generarTablero()">Generar Mapa</button>
     </div>
     <div id="tablero" class="grid"></div>
     <h3 id="seedText"></h3>
-
+    <button id="manual">?</button>
     <script>
+      const textoManual = `
+🕵️ Código Secreto – Mapa
+
+• Genera un mapa usando una semilla
+• Comparte la semilla para repetir el mismo tablero
+• Doble click en una carta para marcarla
+• La partida se guarda mientras la pestaña esté abierta
+• Generar un nuevo mapa borra el actual
+
+⚠️ Si cierras la pestaña, la partida termina
+`;
+
+      let ultimoClickManual = 0;
+      document.getElementById("manual").addEventListener("click", () => {
+        const ahora = Date.now();
+
+        if (ahora - ultimoClickManual < 500) {
+          alert(textoManual);
+          ultimoClickManual = 0;
+        } else {
+          ultimoClickManual = ahora;
+        }
+      });
+
+      function aplicarDobleClickCelda(div) {
+        let ultimoClick = 0;
+
+        div.addEventListener("click", () => {
+          const ahora = Date.now();
+
+          if (ahora - ultimoClick < 500) {
+            div.classList.remove("pendiente");
+            div.classList.toggle("ocupado");
+            guardarEstado();
+            ultimoClick = 0;
+          } else {
+            ultimoClick = ahora;
+            div.classList.add("pendiente");
+
+            setTimeout(() => {
+              div.classList.remove("pendiente");
+            }, 500);
+          }
+        });
+      }
+
       // Función para generar azar basado en una semilla (SFC32)
       function cyrb128(str) {
         let h1 = 1779033703,
@@ -127,12 +211,24 @@
       }
 
       function generarTablero() {
+        const yaExiste = sessionStorage.getItem("tableroGenerado");
+
+        if (yaExiste) {
+          const seguro = confirm(
+            "⚠️ ¿Estás seguro de generar otro tablero? Se perderá el actual."
+          );
+          if (!seguro) return;
+
+          sessionStorage.removeItem("estadoTablero");
+          sessionStorage.removeItem("tableroGenerado");
+        }
+
         const seedText =
           document.getElementById("seedInput").value ||
           Math.random().toString(36).substring(2, 10);
         document.getElementById("seedText").textContent =
           "Semilla usada: " + seedText;
-        
+
         const seed = cyrb128(seedText);
         const rand = sfc32(seed[0], seed[1], seed[2], seed[3]);
         let numRojos, numAzules, numNegro;
@@ -193,12 +289,65 @@
         // Renderizar
         const container = document.getElementById("tablero");
         container.innerHTML = "";
-        cartas.forEach((color) => {
+        cartas.forEach((color, index) => {
           const div = document.createElement("div");
           div.className = `cell ${color}`;
+          div.id = `cell-${index + 1}`;
+          aplicarDobleClickCelda(div);
           container.appendChild(div);
         });
+
+        guardarEstado();
+        sessionStorage.setItem("tableroGenerado", "true");
       }
+
+      function guardarEstado() {
+        const celdas = document.querySelectorAll(".cell");
+
+        const estado = {
+          seed: document.getElementById("seedText").textContent,
+          cartas: [...celdas].map((c) =>
+            c.classList.contains("rojo")
+              ? "rojo"
+              : c.classList.contains("azul")
+              ? "azul"
+              : c.classList.contains("negro")
+              ? "negro"
+              : "cafe"
+          ),
+          ocupados: [...celdas].map((c) => c.classList.contains("ocupado")),
+        };
+
+        sessionStorage.setItem("estadoTablero", JSON.stringify(estado));
+      }
+
+      window.addEventListener("load", () => {
+        const estadoGuardado = sessionStorage.getItem("estadoTablero");
+        if (!estadoGuardado) return;
+
+        const { cartas, ocupados, seed } = JSON.parse(estadoGuardado);
+
+        const container = document.getElementById("tablero");
+        container.innerHTML = "";
+
+        document.getElementById("seedText").textContent = seed;
+
+        cartas.forEach((color, index) => {
+          const div = document.createElement("div");
+          div.className = `cell ${color}`;
+          div.id = `cell-${index + 1}`;
+
+          if (ocupados[index]) {
+            div.classList.add("ocupado");
+          }
+
+          aplicarDobleClickCelda(div);
+
+          container.appendChild(div);
+        });
+
+        sessionStorage.setItem("tableroGenerado", "true");
+      });
     </script>
   </body>
 </html>
